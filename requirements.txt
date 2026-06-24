@@ -18,8 +18,8 @@ faiss-cpu==1.14.3
 numpy==2.5.0
 
 # ── AST-aware code chunking ──────────────────────────────────────
-tree-sitter==0.21.3
-tree-sitter-languages==1.10.2
+tree-sitter==0.20.4
+tree-sitter-languages==1.9.2
 
 # ── Local file watching (dev incremental trigger) ────────────────
 watchdog==6.0.0
