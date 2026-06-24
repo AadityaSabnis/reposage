@@ -19,7 +19,7 @@ numpy==2.5.0
 
 # ── AST-aware code chunking ──────────────────────────────────────
 tree-sitter==0.20.4
-tree-sitter-languages==1.9.2
+# tree-sitter-languages is optional; install manually if needed (wheels unavailable on some platforms)
 
 # ── Local file watching (dev incremental trigger) ────────────────
 watchdog==6.0.0

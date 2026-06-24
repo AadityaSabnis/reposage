@@ -90,7 +90,13 @@ def is_available() -> bool:
 def _get_parser(language: str):
     name = TS_PARSER_NAME[language]
     if name not in _PARSER_CACHE:
-        from tree_sitter_languages import get_parser
+        try:
+            from tree_sitter_languages import get_parser
+        except ImportError as e:
+            raise RuntimeError(
+                f"tree-sitter-languages not installed; using line-window fallback for {language}. "
+                "Install with: pip install tree-sitter-languages"
+            ) from e
         _PARSER_CACHE[name] = get_parser(name)
     return _PARSER_CACHE[name]
 
