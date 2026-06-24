@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RepoSage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark-dimmed.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+<style>
+
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #090909;
+  --surf:     #101010;
+  --surf2:    #181818;
+  --bd:       #1e1e1e;
+  --bd2:      #2c2c2c;
+  --txt:      #efefef;
+  --txt2:     #8a8a8a;
+  --txt3:     #484848;
+  --acc:      #2563eb;
+  --acc-dim:  rgba(37,99,235,.09);
+  --acc-ring: rgba(37,99,235,.35);
+  --green:    #22c55e;
+  --green-dim:rgba(34,197,94,.08);
+  --red:      #f87171;
+  --code:     #060606;
+  --r:        7px;
+  --r-sm:     5px;
+  --r-lg:     10px;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--txt);
+  font: 400 14px/1.6 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Layout ──────────────────────────────────────────────────── */
+
+.app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Topbar ──────────────────────────────────────────────────── */
+
+.topbar {
+  height: 50px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--bd);
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: var(--txt);
+}
+
+.brand-mark {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--acc);
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.02em;
+  flex-shrink: 0;
+}
+
+.brand-name {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.brand-name em { font-style: normal; color: var(--acc); }
+
+.pipe {
+  width: 1px;
+  height: 16px;
+  background: var(--bd2);
+  flex-shrink: 0;
+}
+
+#statPill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  background: var(--surf);
+  border: 1px solid var(--bd);
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--txt2);
+}
+
+#statPill .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--txt3);
+  flex-shrink: 0;
+  transition: all .3s;
+}
+
+#statPill .dot.live {
+  background: var(--green);
+  box-shadow: 0 0 0 3px var(--green-dim);
+}
+
+.spacer { flex: 1; }
+
+.btn-sm {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  background: none;
+  border: 1px solid var(--bd);
+  border-radius: var(--r-sm);
+  color: var(--txt2);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.btn-sm:hover { color: var(--txt); border-color: var(--bd2); background: var(--surf); }
+
+/* ── Setup screen ────────────────────────────────────────────── */
+
+.setup {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 36px;
+  padding: 40px 20px 80px;
+}
+
+.setup-hero { text-align: center; max-width: 420px; }
+
+.setup-hero h2 {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.15;
+  margin-bottom: 12px;
+}
+
+.setup-hero p {
+  color: var(--txt2);
+  font-size: 15px;
+  max-width: 380px;
+  margin: 0 auto;
+}
+
+.setup-row {
+  display: flex;
+  width: 100%;
+  max-width: 480px;
+  border: 1px solid var(--bd);
+  border-radius: var(--r);
+  background: var(--surf);
+  overflow: hidden;
+  transition: border-color .15s;
+}
+.setup-row:focus-within { border-color: var(--acc-ring); }
+
+.setup-row input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--txt);
+  font: 13px/1 'JetBrains Mono', ui-monospace, monospace;
+  padding: 11px 14px;
+}
+.setup-row input::placeholder { color: var(--txt3); font-family: inherit; }
+
+.setup-row button {
+  padding: 0 16px;
+  background: var(--acc);
+  border: none;
+  color: #fff;
+  font: 600 13px/1 'Inter', sans-serif;
+  cursor: pointer;
+  transition: opacity .15s;
+  white-space: nowrap;
+  align-self: stretch;
+}
+.setup-row button:hover { opacity: .85; }
+.setup-row button:disabled { opacity: .4; cursor: default; }
+
+.setup-feats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 20px;
+}
+
+.feat {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  color: var(--txt2);
+}
+
+.feat svg { color: var(--green); flex-shrink: 0; }
+
+.setup-msg {
+  font-size: 12.5px;
+  color: var(--txt2);
+  min-height: 18px;
+  text-align: center;
+  width: 100%;
+  max-width: 480px;
+}
+
+/* ── Workspace ───────────────────────────────────────────────── */
+
+.workspace {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* Chat column */
+.chat-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.answers {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Empty state */
+.no-answer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--txt3);
+  text-align: center;
+  user-select: none;
+}
+
+.no-answer svg { opacity: .2; margin-bottom: 4px; }
+
+.no-answer strong {
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--txt2);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.chip {
+  padding: 5px 12px;
+  background: var(--surf);
+  border: 1px solid var(--bd);
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--txt2);
+  cursor: pointer;
+  transition: all .15s;
+  font-family: inherit;
+}
+.chip:hover { color: var(--txt); border-color: var(--bd2); background: var(--surf2); }
+
+/* Answer card */
+.a-card {
+  background: var(--surf);
+  border: 1px solid var(--bd);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+.a-question {
+  padding: 14px 18px;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  border-bottom: 1px solid var(--bd);
+  line-height: 1.45;
+}
+
+.a-thinking {
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--txt2);
+  font-size: 13px;
+}
+
+.loader { display: flex; gap: 3px; }
+.loader span {
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--txt3);
+  animation: bob 1.1s ease-in-out infinite;
+}
+.loader span:nth-child(2) { animation-delay: .18s; }
+.loader span:nth-child(3) { animation-delay: .36s; }
+
+@keyframes bob {
+  0%,80%,100% { transform: scale(.7); opacity: .3; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+.a-content {
+  padding: 16px 18px;
+  line-height: 1.75;
+  font-size: 14px;
+}
+
+/* Markdown rendered inside answer */
+.a-content h1, .a-content h2, .a-content h3 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 14px 0 6px;
+  line-height: 1.3;
+}
+.a-content h1 { font-size: 17px; }
+.a-content h2 { font-size: 15px; }
+.a-content h3 { font-size: 14px; }
+.a-content p { margin: 0 0 10px; }
+.a-content p:last-child { margin-bottom: 0; }
+.a-content strong { font-weight: 600; color: var(--txt); }
+.a-content code {
+  font: 12px/1 'JetBrains Mono', ui-monospace, monospace;
+  background: var(--surf2);
+  border: 1px solid var(--bd);
+  border-radius: 4px;
+  padding: 2px 5px;
+  color: #c8d3f5;
+}
+.a-content pre {
+  background: var(--code) !important;
+  border: 1px solid var(--bd);
+  border-radius: var(--r-sm);
+  margin: 8px 0;
+  overflow-x: auto;
+}
+.a-content pre code {
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+  font-size: 12px !important;
+}
+.a-content ul, .a-content ol { padding-left: 20px; margin: 4px 0 10px; }
+.a-content li { margin-bottom: 2px; }
+
+.a-footer {
+  padding: 8px 18px;
+  border-top: 1px solid var(--bd);
+  font-size: 11.5px;
+  color: var(--txt3);
+  display: flex;
+  gap: 16px;
+}
+
+.err-line {
+  padding: 14px 18px;
+  color: var(--red);
+  font-size: 13px;
+}
+
+/* Input dock */
+.input-dock {
+  padding: 10px 16px 14px;
+  border-top: 1px solid var(--bd);
+  background: var(--bg);
+}
+
+.q-box {
+  border: 1px solid var(--bd);
+  border-radius: var(--r);
+  background: var(--surf);
+  transition: border-color .15s;
+}
+.q-box:focus-within { border-color: var(--acc-ring); }
+
+.q-textarea {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--txt);
+  font: 14px/1.55 'Inter', sans-serif;
+  padding: 11px 14px 5px;
+  resize: none;
+  min-height: 44px;
+  max-height: 130px;
+  overflow-y: auto;
+}
+.q-textarea::placeholder { color: var(--txt3); }
+
+.q-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 10px 7px 13px;
+}
+
+.q-hint { font-size: 11.5px; color: var(--txt3); }
+
+kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  background: var(--surf2);
+  border: 1px solid var(--bd2);
+  border-radius: 3px;
+  font: 10.5px/1.5 inherit;
+  color: var(--txt2);
+  vertical-align: middle;
+}
+
+.ask-btn {
+  padding: 6px 14px;
+  background: var(--txt);
+  border: none;
+  border-radius: var(--r-sm);
+  color: var(--bg);
+  font: 600 13px/1 'Inter', sans-serif;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.ask-btn:hover { opacity: .85; }
+.ask-btn:disabled { opacity: .3; cursor: default; }
+
+/* ── Evidence sidebar ────────────────────────────────────────── */
+
+.ev-col {
+  width: 332px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--bd);
+  background: var(--surf);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ev-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  height: 38px;
+  border-bottom: 1px solid var(--bd);
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--txt3);
+}
+
+#evCount {
+  background: var(--bd2);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  color: var(--txt2);
+  font-weight: 500;
+}
+
+.ev-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.ev-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--txt3);
+  font-size: 12.5px;
+  text-align: center;
+  padding: 20px;
+}
+.ev-empty svg { opacity: .18; }
+
+/* Citation card */
+.cit {
+  border: 1px solid var(--bd);
+  border-radius: var(--r);
+  overflow: hidden;
+  background: var(--bg);
+  transition: border-color .15s;
+}
+.cit:hover { border-color: var(--bd2); }
+
+.cit-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 7px 9px;
+  background: var(--surf2);
+  border-bottom: 1px solid var(--bd);
+}
+
+.cit-rank {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--bd2);
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--txt2);
+  flex-shrink: 0;
+}
+
+.tag {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.tag.fn  { background: rgba(59,130,246,.12); color: #60a5fa; }
+.tag.cls { background: rgba(168,85,247,.12); color: #c084fc; }
+.tag.mth { background: rgba(249,115,22,.12); color: #fb923c; }
+.tag.win { background: rgba(100,100,100,.1); color: #888; }
+.tag.mod { background: rgba(234,179,8,.1);   color: #fbbf24; }
+
+.cit-loc {
+  flex: 1;
+  min-width: 0;
+  font: 500 11px/1 'JetBrains Mono', ui-monospace, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cit-loc a { color: var(--acc); text-decoration: none; }
+.cit-loc a:hover { text-decoration: underline; }
+
+.cit-score { font-size: 10.5px; color: var(--txt3); flex-shrink: 0; margin-left: auto; }
+
+.cit-sym {
+  font: 11px/1.5 'JetBrains Mono', ui-monospace, monospace;
+  color: var(--txt2);
+  padding: 3px 9px;
+  background: var(--surf);
+  border-bottom: 1px solid var(--bd);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cit-code {
+  font-size: 11.5px !important;
+  line-height: 1.5 !important;
+  margin: 0 !important;
+  padding: 9px 10px !important;
+  border-radius: 0 !important;
+  background: var(--code) !important;
+  max-height: 200px;
+  overflow-y: auto;
+  overflow-x: auto;
+}
+
+/* ── Index modal ─────────────────────────────────────────────── */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.76);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 20px;
+}
+
+.modal {
+  background: var(--surf);
+  border: 1px solid var(--bd2);
+  border-radius: var(--r-lg);
+  width: 100%;
+  max-width: 420px;
+  padding: 22px;
+}
+
+.modal h3 {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+}
+
+.modal .sub { font-size: 13px; color: var(--txt2); margin-bottom: 18px; }
+
+.field { margin-bottom: 12px; }
+.field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--txt2);
+  margin-bottom: 5px;
+}
+.field input {
+  width: 100%;
+  background: var(--surf2);
+  border: 1px solid var(--bd);
+  border-radius: var(--r-sm);
+  color: var(--txt);
+  font: 13px/1.5 'JetBrains Mono', ui-monospace, monospace;
+  padding: 8px 10px;
+  outline: none;
+  transition: border-color .15s;
+}
+.field input:focus { border-color: var(--acc-ring); }
+.field input::placeholder { color: var(--txt3); }
+
+.modal-msg { font-size: 12.5px; color: var(--txt2); min-height: 18px; margin-top: 8px; }
+
+.modal-btns {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.btn-cancel {
+  padding: 7px 13px;
+  background: none;
+  border: 1px solid var(--bd);
+  border-radius: var(--r-sm);
+  color: var(--txt2);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.btn-cancel:hover { color: var(--txt); border-color: var(--bd2); }
+
+.btn-go {
+  padding: 7px 14px;
+  background: var(--acc);
+  border: none;
+  border-radius: var(--r-sm);
+  color: #fff;
+  font: 600 13px/1 inherit;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.btn-go:hover { opacity: .85; }
+.btn-go:disabled { opacity: .4; cursor: default; }
+
+/* ── Scrollbars ──────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bd2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }
+
+/* ── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 700px) { .ev-col { display: none; } }
+
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ── Topbar ─────────────────────────────────────────────── -->
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark">RS</div>
+      <span class="brand-name">Repo<em>Sage</em></span>
+    </div>
+    <div class="pipe"></div>
+    <div id="statPill">
+      <div class="dot" id="statDot"></div>
+      <span id="statText">connecting…</span>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn-sm" onclick="openModal()">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+        <path d="M5 1v8M1 5h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      Index Repo
+    </button>
+  </div>
+
+  <!-- ── Setup (no index yet) ──────────────────────────────── -->
+  <div class="setup" id="setupScreen">
+    <div class="setup-hero">
+      <h2>Ask your codebase<br>anything.</h2>
+      <p>RepoSage indexes your repo with AST-aware chunking, then answers questions with citations pointing to exact functions — every claim verifiable.</p>
+    </div>
+    <div style="width:100%;max-width:480px;display:flex;flex-direction:column;gap:8px">
+      <div class="setup-row">
+        <input type="text" id="setupPath" placeholder="/path/to/your/repo" />
+        <button id="setupBtn" onclick="doIndex(document.getElementById('setupPath').value)">Index Repo →</button>
+      </div>
+      <div class="setup-msg" id="setupMsg"></div>
+    </div>
+    <div class="setup-feats">
+      <div class="feat">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>AST-aware chunking
+      </div>
+      <div class="feat">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>Incremental updates
+      </div>
+      <div class="feat">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>GitHub citations
+      </div>
+      <div class="feat">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>Local LLM via Ollama
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Workspace ─────────────────────────────────────────── -->
+  <div class="workspace" id="workspace" style="display:none">
+
+    <!-- Chat column -->
+    <div class="chat-col">
+      <div class="answers" id="answers">
+        <div class="no-answer" id="noAnswer">
+          <svg width="38" height="38" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.3"/>
+            <path d="M7.5 8h9M7.5 12h9M7.5 16h5.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+          </svg>
+          <strong>Ask a question about your codebase</strong>
+          <div>Answers are grounded in retrieved code chunks.<br>Every claim is cited.</div>
+          <div class="chips" id="chips">
+            <button class="chip">How does incremental indexing decide what to re-embed?</button>
+            <button class="chip">Where are FAISS vectors removed by id?</button>
+            <button class="chip">How is a chunk_id generated?</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="input-dock">
+        <div class="q-box">
+          <textarea class="q-textarea" id="qInput"
+            placeholder="Ask a question about the indexed repository…"
+            rows="1"></textarea>
+          <div class="q-row">
+            <span class="q-hint"><kbd>⌘</kbd> <kbd>↵</kbd> to send</span>
+            <button class="ask-btn" id="askBtn">Ask</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Evidence sidebar -->
+    <aside class="ev-col">
+      <div class="ev-head">
+        Evidence
+        <span id="evCount">0</span>
+      </div>
+      <div class="ev-body" id="evBody">
+        <div class="ev-empty">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none">
+            <path d="M9 12h6M9 16h4M7 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V9l-6-6z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M13 3v6h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+          </svg>
+          Retrieved chunks will<br>appear here
+        </div>
+      </div>
+    </aside>
+
+  </div>
+</div>
+
+<!-- ── Index modal ────────────────────────────────────────────── -->
+<div class="overlay" id="modalOverlay" style="display:none" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h3>Index a Repository</h3>
+    <div class="sub">Point RepoSage at a local path to build the vector index. Large repos may take a minute.</div>
+    <div class="field">
+      <label>Repository Path</label>
+      <input type="text" id="mPath" placeholder="/Users/you/projects/myrepo" />
+    </div>
+    <div class="modal-msg" id="mMsg"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-go" id="mBtn" onclick="doIndex(document.getElementById('mPath').value, true)">
+        Start Indexing
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── API base ────────────────────────────────────────────────────
+// Same-origin when served by uvicorn (http/https). Falls back to
+// localhost when opened as a file or from the preview sandbox.
+// Override: ?api=https://your-deployed-host
+const API_BASE = (() => {
+  const p = new URLSearchParams(location.search).get("api");
+  if (p) return p.replace(/\/$/, "");
+  return /^https?:$/.test(location.protocol) ? "" : "http://localhost:8000";
+})();
+
+const $ = id => document.getElementById(id);
+
+function esc(s) {
+  return (s || "").replace(/[&<>"']/g,
+    c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
+}
+
+// ── Status ──────────────────────────────────────────────────────
+async function refreshStatus() {
+  try {
+    const s = await (await fetch(API_BASE + "/stats")).json();
+    if (s.indexed) {
+      $("statDot").classList.add("live");
+      const repo = s.repo?.github_repo
+        || s.repo?.repo_path?.split("/").pop()
+        || "repo";
+      $("statText").textContent = `${s.chunks} chunks · ${s.files} files · ${repo}`;
+      $("setupScreen").style.display = "none";
+      $("workspace").style.display = "flex";
+    } else {
+      $("statDot").classList.remove("live");
+      $("statText").textContent = "not indexed";
+      $("setupScreen").style.display = "flex";
+      $("workspace").style.display = "none";
+    }
+  } catch {
+    $("statDot").classList.remove("live");
+    $("statText").textContent = "API unreachable";
+  }
+}
+
+// ── Index ───────────────────────────────────────────────────────
+async function doIndex(path, fromModal = false) {
+  const msgEl = fromModal ? $("mMsg") : $("setupMsg");
+  const btnEl = fromModal ? $("mBtn") : $("setupBtn");
+  if (!path?.trim()) { msgEl.textContent = "⚠ Enter a path first."; return; }
+  btnEl.disabled = true;
+  msgEl.textContent = "Indexing… this may take a minute for large repos.";
+  try {
+    const r = await fetch(API_BASE + "/repos/index", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ repo_path: path.trim() }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || "indexing failed");
+    msgEl.textContent =
+      `✓ Indexed ${d.chunks_indexed} chunks across ${d.files_indexed} files in ${d.elapsed_sec.toFixed(1)}s`;
+    await refreshStatus();
+    if (fromModal) setTimeout(closeModal, 1800);
+  } catch(e) {
+    msgEl.textContent = "✗ " + e.message;
+    btnEl.disabled = false;
+  }
+}
+
+// ── Modal ───────────────────────────────────────────────────────
+function openModal() {
+  $("modalOverlay").style.display = "flex";
+  setTimeout(() => $("mPath").focus(), 30);
+}
+function closeModal() {
+  $("modalOverlay").style.display = "none";
+  $("mMsg").textContent = "";
+  $("mBtn").disabled = false;
+}
+
+// ── Citations ───────────────────────────────────────────────────
+function tagCls(t) {
+  return { function:"fn", class:"cls", method:"mth", module:"mod" }[t] || "win";
+}
+
+function renderEvidence(citations) {
+  const body = $("evBody");
+  if (!citations?.length) {
+    $("evCount").textContent = "0";
+    body.innerHTML = `<div class="ev-empty">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none">
+        <path d="M9 12h6M9 16h4M7 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V9l-6-6z"
+              stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M13 3v6h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+      </svg>No citations returned</div>`;
+    return;
+  }
+  $("evCount").textContent = citations.length;
+  body.innerHTML = citations.map((c, i) => {
+    const loc = `${c.file_path}:${c.start_line}-${c.end_line}`;
+    const link = c.github_url
+      ? `<a href="${esc(c.github_url)}" target="_blank" rel="noopener">${esc(loc)}</a>`
+      : `<span>${esc(loc)}</span>`;
+    const score = c.score !== undefined ? `<span class="cit-score">cos ${c.score}</span>` : "";
+    return `<div class="cit">
+      <div class="cit-head">
+        <span class="cit-rank">${i+1}</span>
+        <span class="tag ${tagCls(c.symbol_type)}">${esc(c.symbol_type || "chunk")}</span>
+        <span class="cit-loc">${link}</span>
+        ${score}
+      </div>
+      <div class="cit-sym">${esc(c.symbol_name || "")}</div>
+      <pre><code class="cit-code language-${esc(c.language || "text")}">${esc(c.snippet || "")}</code></pre>
+    </div>`;
+  }).join("");
+  body.querySelectorAll("code.cit-code").forEach(el => hljs.highlightElement(el));
+}
+
+// ── Ask ─────────────────────────────────────────────────────────
+async function ask(question) {
+  const q = question.trim();
+  if (!q) return;
+  $("askBtn").disabled = true;
+
+  // Replace answers area with question + loader
+  $("answers").innerHTML = `<div class="a-card" id="cur">
+    <div class="a-question">${esc(q)}</div>
+    <div class="a-thinking">
+      <div class="loader"><span></span><span></span><span></span></div>
+      Retrieving chunks…
+    </div>
+  </div>`;
+
+  // Sidebar: show searching state
+  $("evCount").textContent = "…";
+  $("evBody").innerHTML = `<div class="ev-empty">
+    <div class="loader" style="justify-content:center;margin-bottom:8px">
+      <span></span><span></span><span></span>
+    </div>
+    <div style="font-size:12px">Searching…</div>
+  </div>`;
+
+  try {
+    const r = await fetch(API_BASE + "/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: q }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || "request failed");
+
+    const answerHtml = typeof marked !== "undefined"
+      ? marked.parse(d.answer)
+      : esc(d.answer).replace(/\n/g, "<br>");
+
+    document.querySelector(".a-thinking").outerHTML =
+      `<div class="a-content">${answerHtml}</div>
+       <div class="a-footer">
+         <span>model: ${esc(d.model)}</span>
+         <span>${d.retrieved} chunks retrieved</span>
+       </div>`;
+
+    // Highlight any code blocks in the answer
+    document.querySelectorAll(".a-content pre code").forEach(el => hljs.highlightElement(el));
+    renderEvidence(d.citations);
+  } catch(e) {
+    const thinking = document.querySelector(".a-thinking");
+    if (thinking) thinking.outerHTML = `<div class="err-line">✗ ${esc(e.message)}</div>`;
+    renderEvidence([]);
+  } finally {
+    $("askBtn").disabled = false;
+  }
+}
+
+// ── Textarea auto-resize ────────────────────────────────────────
+function resize(el) {
+  el.style.height = "auto";
+  el.style.height = Math.min(el.scrollHeight, 130) + "px";
+}
+
+// ── Events ──────────────────────────────────────────────────────
+$("askBtn").addEventListener("click", () => {
+  const v = $("qInput").value.trim();
+  if (v) { ask(v); $("qInput").value = ""; resize($("qInput")); }
+});
+
+$("qInput").addEventListener("keydown", e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+    e.preventDefault();
+    const v = $("qInput").value.trim();
+    if (v) { ask(v); $("qInput").value = ""; resize(e.target); }
+  }
+  setTimeout(() => resize(e.target), 0);
+});
+
+$("chips").addEventListener("click", e => {
+  if (e.target.matches(".chip")) {
+    ask(e.target.textContent);
+  }
+});
+
+$("setupPath").addEventListener("keydown", e => {
+  if (e.key === "Enter") doIndex($("setupPath").value);
+});
+
+$("mPath").addEventListener("keydown", e => {
+  if (e.key === "Enter") doIndex($("mPath").value, true);
+});
+
+// ── Boot ────────────────────────────────────────────────────────
+refreshStatus();
+</script>
+</body>
+</html>
