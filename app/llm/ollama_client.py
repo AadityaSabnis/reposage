@@ -7,6 +7,9 @@ between questions.
 """
 from __future__ import annotations
 
+import json
+from typing import AsyncIterator
+
 import httpx
 
 from app.config import settings
@@ -21,22 +24,35 @@ class OllamaClient(LLMClient):
         self.model = model or settings.ollama_model
         self.keep_alive = keep_alive or settings.ollama_keep_alive
 
-    async def generate(self, prompt: str) -> str:
-        payload = {
+    def _payload(self, prompt: str, stream: bool) -> dict:
+        return {
             "model": self.model,
             "messages": [
                 {"role": "system", "content": GROUNDING_SYSTEM},
                 {"role": "user", "content": prompt},
             ],
-            "stream": False,
+            "stream": stream,
             "keep_alive": self.keep_alive,
             "options": {"temperature": 0.0, "num_ctx": 8192, "num_predict": 768},
         }
+
+    async def astream(self, prompt: str) -> AsyncIterator[str]:
+        """Stream content deltas from Ollama's newline-delimited JSON."""
         async with httpx.AsyncClient(timeout=httpx.Timeout(180.0)) as client:
-            r = await client.post(f"{self.url}/api/chat", json=payload)
-            if r.status_code != 200:
-                raise RuntimeError(f"Ollama HTTP {r.status_code}: {r.text[:300]}")
-            j = r.json()
-            if j.get("error"):
-                raise RuntimeError(f"Ollama error: {j['error']}")
-            return (j.get("message", {}).get("content") or "").strip()
+            async with client.stream(
+                "POST", f"{self.url}/api/chat", json=self._payload(prompt, stream=True)
+            ) as r:
+                if r.status_code != 200:
+                    body = (await r.aread()).decode("utf-8", "replace")
+                    raise RuntimeError(f"Ollama HTTP {r.status_code}: {body[:300]}")
+                async for line in r.aiter_lines():
+                    if not line.strip():
+                        continue
+                    obj = json.loads(line)
+                    if obj.get("error"):
+                        raise RuntimeError(f"Ollama error: {obj['error']}")
+                    piece = obj.get("message", {}).get("content")
+                    if piece:
+                        yield piece
+                    if obj.get("done"):
+                        break

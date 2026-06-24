@@ -8,7 +8,7 @@ system prompt and the evidence-prompt builder live here so both clients
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import List, TYPE_CHECKING
+from typing import AsyncIterator, List, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.retrieval.retriever import RetrievedChunk
@@ -33,13 +33,27 @@ GROUNDING_SYSTEM = (
 
 
 class LLMClient(ABC):
-    """Minimal interface: text in, text out (async)."""
+    """Minimal interface: text in, text out (async, streaming-first).
+
+    Subclasses implement only `astream` (an async generator of text
+    deltas). `generate` is derived from it for free — collapsing the answer
+    into one string — so there is exactly one HTTP/transport implementation
+    per provider, not two.
+    """
 
     name: str = "base"
 
     @abstractmethod
-    async def generate(self, prompt: str) -> str:
+    def astream(self, prompt: str) -> AsyncIterator[str]:
+        """Yield answer text deltas as they arrive."""
         ...
+
+    async def generate(self, prompt: str) -> str:
+        """Collect the full answer (used by the non-streaming /ask route)."""
+        parts: List[str] = []
+        async for piece in self.astream(prompt):
+            parts.append(piece)
+        return "".join(parts).strip()
 
 
 def build_prompt(question: str, hits: "List[RetrievedChunk]") -> str:

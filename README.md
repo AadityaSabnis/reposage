@@ -119,7 +119,8 @@ python -m app.watcher        # watches REPO_PATH
 | Method & path            | Purpose                                                             |
 |--------------------------|---------------------------------------------------------------------|
 | `POST /repos/index`      | Full (re)index. `{repo_path?}` → `{files_indexed, chunks_indexed, ntotal, elapsed_sec}` |
-| `POST /ask`              | `{question, top_k?}` → `{answer, citations:[{file_path,start_line,end_line,github_url,snippet}], model}` |
+| `POST /ask`              | Blocking. `{question, top_k?}` → `{answer, citations:[{file_path,start_line,end_line,github_url,snippet}], model}` |
+| `POST /ask/stream`       | Streaming (SSE). Emits a `citations` event immediately, then `token` events, then `done`. The chat UI uses this. |
 | `POST /webhook/git-push` | `{changed_files, deleted_files}` → incremental stats (proves how little was re-embedded) |
 | `GET  /stats`            | index size + the last incremental-update result                     |
 | `GET  /health`           | liveness                                                            |

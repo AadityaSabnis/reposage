@@ -185,12 +185,6 @@ class MetadataStore:
             )
             self._conn.commit()
 
-    def get_meta(self, key: str) -> Optional[str]:
-        row = self._conn.execute(
-            "SELECT value FROM repo_meta WHERE key=?", (key,)
-        ).fetchone()
-        return row["value"] if row else None
-
     def all_meta(self) -> Dict[str, str]:
         cur = self._conn.execute("SELECT key, value FROM repo_meta")
         return {r["key"]: r["value"] for r in cur.fetchall()}

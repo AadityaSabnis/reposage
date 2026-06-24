@@ -397,8 +397,49 @@ html, body {
   font-size: 11.5px;
   color: var(--txt3);
   display: flex;
+  align-items: center;
   gap: 16px;
 }
+
+/* Streaming caret */
+.stream-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 14px;
+  margin-left: 1px;
+  background: var(--acc);
+  border-radius: 1px;
+  vertical-align: text-bottom;
+  animation: blink 1.05s steps(2, start) infinite;
+}
+@keyframes blink { 0%,50% { opacity: 1; } 50.01%,100% { opacity: 0; } }
+
+/* Copy answer */
+.copy-btn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 1px solid var(--bd);
+  border-radius: 4px;
+  color: var(--txt2);
+  font: inherit;
+  font-size: 11px;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.copy-btn:hover { color: var(--txt); border-color: var(--bd2); }
+.copy-btn.done { color: var(--green); border-color: rgba(34,197,94,.3); }
+
+/* Entrance animations */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(7px); }
+  to   { opacity: 1; transform: none; }
+}
+.a-card { animation: fadeUp .28s cubic-bezier(.2,.7,.3,1); }
+.cit    { animation: fadeUp .32s cubic-bezier(.2,.7,.3,1) backwards; }
 
 .err-line {
   padding: 14px 18px;
@@ -709,7 +750,18 @@ kbd {
 ::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }
 
 /* ── Responsive ──────────────────────────────────────────────── */
-@media (max-width: 700px) { .ev-col { display: none; } }
+@media (max-width: 760px) {
+  .workspace { flex-direction: column; }
+  .chat-col { flex: 1 1 auto; min-height: 0; }
+  .ev-col {
+    width: 100%;
+    flex: 0 0 auto;
+    max-height: 42vh;
+    border-left: none;
+    border-top: 1px solid var(--bd);
+  }
+  .answers { padding: 16px; }
+}
 
 </style>
 </head>
@@ -949,7 +1001,7 @@ function renderEvidence(citations) {
       ? `<a href="${esc(c.github_url)}" target="_blank" rel="noopener">${esc(loc)}</a>`
       : `<span>${esc(loc)}</span>`;
     const score = c.score !== undefined ? `<span class="cit-score">cos ${c.score}</span>` : "";
-    return `<div class="cit">
+    return `<div class="cit" style="animation-delay:${i * 0.04}s">
       <div class="cit-head">
         <span class="cit-rank">${i+1}</span>
         <span class="tag ${tagCls(c.symbol_type)}">${esc(c.symbol_type || "chunk")}</span>
@@ -963,22 +1015,39 @@ function renderEvidence(citations) {
   body.querySelectorAll("code.cit-code").forEach(el => hljs.highlightElement(el));
 }
 
-// ── Ask ─────────────────────────────────────────────────────────
+// ── Ask (streaming via SSE) ─────────────────────────────────────
+let lastAnswer = "";
+
+function renderMarkdown(text) {
+  return (typeof marked !== "undefined")
+    ? marked.parse(text)
+    : esc(text).replace(/\n/g, "<br>");
+}
+
+function copyAnswer(btn) {
+  navigator.clipboard.writeText(lastAnswer).then(() => {
+    btn.classList.add("done");
+    btn.textContent = "Copied";
+    setTimeout(() => { btn.classList.remove("done"); btn.textContent = "Copy"; }, 1400);
+  });
+}
+
 async function ask(question) {
   const q = question.trim();
   if (!q) return;
   $("askBtn").disabled = true;
+  lastAnswer = "";
 
-  // Replace answers area with question + loader
-  $("answers").innerHTML = `<div class="a-card" id="cur">
+  // Question + retrieving indicator
+  $("answers").innerHTML = `<div class="a-card">
     <div class="a-question">${esc(q)}</div>
-    <div class="a-thinking">
+    <div class="a-thinking" id="thinking">
       <div class="loader"><span></span><span></span><span></span></div>
-      Retrieving chunks…
+      <span id="thinkLabel">Retrieving chunks…</span>
     </div>
   </div>`;
 
-  // Sidebar: show searching state
+  // Sidebar: searching state
   $("evCount").textContent = "…";
   $("evBody").innerHTML = `<div class="ev-empty">
     <div class="loader" style="justify-content:center;margin-bottom:8px">
@@ -987,32 +1056,84 @@ async function ask(question) {
     <div style="font-size:12px">Searching…</div>
   </div>`;
 
+  let model = "", retrieved = 0, started = false, queued = false, finished = false;
+
+  const beginAnswer = () => {
+    const t = $("thinking");
+    if (t) t.outerHTML =
+      `<div class="a-content" id="answerBody"></div>
+       <div class="a-footer" id="answerFooter"></div>`;
+  };
+  const paintAnswer = (streaming) => {
+    const el = $("answerBody");
+    if (!el) return;
+    el.innerHTML = renderMarkdown(lastAnswer) +
+      (streaming ? '<span class="stream-cursor"></span>' : "");
+  };
+
   try {
-    const r = await fetch(API_BASE + "/ask", {
+    const r = await fetch(API_BASE + "/ask/stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ question: q }),
     });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.detail || "request failed");
+    if (!r.ok || !r.body) {
+      let detail = "request failed";
+      try { detail = (await r.json()).detail || detail; } catch {}
+      throw new Error(detail);
+    }
 
-    const answerHtml = typeof marked !== "undefined"
-      ? marked.parse(d.answer)
-      : esc(d.answer).replace(/\n/g, "<br>");
+    const reader = r.body.getReader();
+    const decoder = new TextDecoder();
+    let sse = "";
 
-    document.querySelector(".a-thinking").outerHTML =
-      `<div class="a-content">${answerHtml}</div>
-       <div class="a-footer">
-         <span>model: ${esc(d.model)}</span>
-         <span>${d.retrieved} chunks retrieved</span>
-       </div>`;
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      sse += decoder.decode(value, { stream: true });
+      const frames = sse.split("\n\n");
+      sse = frames.pop();  // retain partial frame
+      for (const frame of frames) {
+        const line = frame.trim();
+        if (!line.startsWith("data:")) continue;
+        const evt = JSON.parse(line.slice(5).trim());
 
-    // Highlight any code blocks in the answer
+        if (evt.type === "citations") {
+          model = evt.model; retrieved = evt.retrieved;
+          renderEvidence(evt.citations);
+          const lbl = $("thinkLabel");
+          if (lbl) lbl.textContent = "Generating answer…";
+        } else if (evt.type === "token") {
+          if (!started) { started = true; beginAnswer(); }
+          lastAnswer += evt.text;
+          if (!queued) {                       // throttle re-render to one per frame
+            queued = true;
+            requestAnimationFrame(() => { queued = false; paintAnswer(!finished); });
+          }
+        } else if (evt.type === "error") {
+          throw new Error(evt.detail);
+        } else if (evt.type === "done") {
+          if (!started) { started = true; beginAnswer(); }
+        }
+      }
+    }
+
+    // Finalize: drop the cursor, highlight code, build footer with copy.
+    finished = true;
+    paintAnswer(false);
     document.querySelectorAll(".a-content pre code").forEach(el => hljs.highlightElement(el));
-    renderEvidence(d.citations);
+    const footer = $("answerFooter");
+    if (footer) footer.innerHTML =
+      `<span>model: ${esc(model)}</span>
+       <span>${retrieved} chunks retrieved</span>
+       <button class="copy-btn" onclick="copyAnswer(this)">Copy</button>`;
   } catch(e) {
-    const thinking = document.querySelector(".a-thinking");
-    if (thinking) thinking.outerHTML = `<div class="err-line">✗ ${esc(e.message)}</div>`;
+    const t = $("thinking");
+    if (t) t.outerHTML = `<div class="err-line">✗ ${esc(e.message)}</div>`;
+    else {
+      const body = $("answerBody");
+      if (body) body.insertAdjacentHTML("beforeend", `<div class="err-line">✗ ${esc(e.message)}</div>`);
+    }
     renderEvidence([]);
   } finally {
     $("askBtn").disabled = false;

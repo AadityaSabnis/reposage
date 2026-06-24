@@ -6,6 +6,9 @@ LLM_PROVIDER=hosted, because Ollama won't run on most free hosting tiers.
 """
 from __future__ import annotations
 
+import json
+from typing import AsyncIterator
+
 import httpx
 
 from app.config import settings
@@ -20,7 +23,8 @@ class HostedClient(LLMClient):
         self.model = model or settings.hosted_model
         self.api_key = api_key or settings.hosted_api_key
 
-    async def generate(self, prompt: str) -> str:
+    async def astream(self, prompt: str) -> AsyncIterator[str]:
+        """Stream content deltas from an OpenAI-compatible SSE response."""
         if not self.api_key:
             raise RuntimeError(
                 "No hosted API key set. Set GROQ_API_KEY or OPENAI_API_KEY "
@@ -34,17 +38,26 @@ class HostedClient(LLMClient):
             ],
             "temperature": 0.0,
             "max_tokens": 768,
-            "stream": False,
+            "stream": True,
         }
         headers = {"Authorization": f"Bearer {self.api_key}"}
         async with httpx.AsyncClient(timeout=httpx.Timeout(120.0)) as client:
-            r = await client.post(
-                f"{self.base_url}/chat/completions", json=payload, headers=headers
-            )
-            if r.status_code != 200:
-                raise RuntimeError(f"Hosted LLM HTTP {r.status_code}: {r.text[:300]}")
-            j = r.json()
-            return (j["choices"][0]["message"]["content"] or "").strip()
+            async with client.stream(
+                "POST", f"{self.base_url}/chat/completions", json=payload, headers=headers
+            ) as r:
+                if r.status_code != 200:
+                    body = (await r.aread()).decode("utf-8", "replace")
+                    raise RuntimeError(f"Hosted LLM HTTP {r.status_code}: {body[:300]}")
+                async for line in r.aiter_lines():
+                    line = line.strip()
+                    if not line or not line.startswith("data:"):
+                        continue
+                    data = line[len("data:"):].strip()
+                    if data == "[DONE]":
+                        break
+                    delta = json.loads(data)["choices"][0]["delta"].get("content")
+                    if delta:
+                        yield delta
 
 
 def make_llm_client() -> LLMClient:
