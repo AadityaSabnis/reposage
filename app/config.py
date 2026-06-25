@@ -51,6 +51,9 @@ class Settings(BaseSettings):
     # ── Retrieval ────────────────────────────────────────────────
     top_k: int = 8
 
+    # ── Git URL indexing (clone-then-index feature) ──────────────
+    git_clone_timeout: int = 120  # seconds before a clone is aborted
+
     # ── Derived paths ────────────────────────────────────────────
     @property
     def data_path(self) -> Path:
@@ -65,6 +68,13 @@ class Settings(BaseSettings):
     @property
     def db_path(self) -> Path:
         return self.data_path / "metadata.sqlite"
+
+    @property
+    def repos_cache_dir(self) -> Path:
+        """Where repos cloned from a Git URL are checked out for indexing."""
+        p = self.data_path / "repos"
+        p.mkdir(parents=True, exist_ok=True)
+        return p
 
     @property
     def hosted_api_key(self) -> str:

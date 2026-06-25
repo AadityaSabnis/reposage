@@ -212,6 +212,29 @@ html, body {
 .setup-row button:hover { opacity: .85; }
 .setup-row button:disabled { opacity: .4; cursor: default; }
 
+/* Local Path / Git URL source toggle */
+.src-toggle {
+  display: inline-flex;
+  align-self: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--bd);
+  border-radius: var(--r);
+  background: var(--surf);
+}
+.src-tab {
+  padding: 5px 12px;
+  border: none;
+  background: none;
+  color: var(--txt2);
+  font: 600 12px/1 'Inter', sans-serif;
+  border-radius: calc(var(--r) - 3px);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.src-tab:hover { color: var(--txt); }
+.src-tab.active { background: var(--acc); color: #fff; }
+
 .setup-feats {
   display: flex;
   flex-wrap: wrap;
@@ -795,10 +818,18 @@ kbd {
       <h2>Ask your codebase<br>anything.</h2>
       <p>RepoSage indexes your repo with AST-aware chunking, then answers questions with citations pointing to exact functions — every claim verifiable.</p>
     </div>
-    <div style="width:100%;max-width:480px;display:flex;flex-direction:column;gap:8px">
-      <div class="setup-row">
+    <div style="width:100%;max-width:480px;display:flex;flex-direction:column;gap:10px;align-items:center">
+      <div class="src-toggle">
+        <button class="src-tab active" id="tabLocal" onclick="switchSrc('local')">Local Path</button>
+        <button class="src-tab" id="tabGit" onclick="switchSrc('git')">Git URL</button>
+      </div>
+      <div class="setup-row" id="rowLocal">
         <input type="text" id="setupPath" placeholder="/path/to/your/repo" />
         <button id="setupBtn" onclick="doIndex(document.getElementById('setupPath').value)">Index Repo →</button>
+      </div>
+      <div class="setup-row" id="rowGit" style="display:none">
+        <input type="text" id="setupGit" placeholder="https://github.com/owner/repo" />
+        <button id="setupGitBtn" onclick="doIndexGit(document.getElementById('setupGit').value)">Clone &amp; Index →</button>
       </div>
       <div class="setup-msg" id="setupMsg"></div>
     </div>
@@ -884,16 +915,27 @@ kbd {
 <div class="overlay" id="modalOverlay" style="display:none" onclick="if(event.target===this)closeModal()">
   <div class="modal">
     <h3>Index a Repository</h3>
-    <div class="sub">Point RepoSage at a local path to build the vector index. Large repos may take a minute.</div>
-    <div class="field">
+    <div class="sub">Point RepoSage at a local path or a Git URL to build the vector index. Large repos may take a minute.</div>
+    <div class="src-toggle" style="margin-bottom:14px">
+      <button class="src-tab active" id="mTabLocal" onclick="switchModalSrc('local')">Local Path</button>
+      <button class="src-tab" id="mTabGit" onclick="switchModalSrc('git')">Git URL</button>
+    </div>
+    <div class="field" id="mFieldLocal">
       <label>Repository Path</label>
       <input type="text" id="mPath" placeholder="/Users/you/projects/myrepo" />
+    </div>
+    <div class="field" id="mFieldGit" style="display:none">
+      <label>Git URL</label>
+      <input type="text" id="mGit" placeholder="https://github.com/owner/repo" />
     </div>
     <div class="modal-msg" id="mMsg"></div>
     <div class="modal-btns">
       <button class="btn-cancel" onclick="closeModal()">Cancel</button>
       <button class="btn-go" id="mBtn" onclick="doIndex(document.getElementById('mPath').value, true)">
         Start Indexing
+      </button>
+      <button class="btn-go" id="mGitBtn" style="display:none" onclick="doIndexGit(document.getElementById('mGit').value, true)">
+        Clone &amp; Index
       </button>
     </div>
   </div>
@@ -964,6 +1006,54 @@ async function doIndex(path, fromModal = false) {
     msgEl.textContent = "✗ " + e.message;
     btnEl.disabled = false;
   }
+}
+
+// ── Index from Git URL ──────────────────────────────────────────
+async function doIndexGit(url, fromModal = false) {
+  const msgEl = fromModal ? $("mMsg") : $("setupMsg");
+  const btnEl = fromModal ? $("mGitBtn") : $("setupGitBtn");
+  if (!url?.trim()) { msgEl.textContent = "⚠ Enter a git URL first."; return; }
+  btnEl.disabled = true;
+  msgEl.textContent = "Cloning & indexing… this can take a minute.";
+  try {
+    const r = await fetch(API_BASE + "/repos/index-git", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ git_url: url.trim() }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || "indexing failed");
+    msgEl.textContent =
+      `✓ Indexed ${d.chunks_indexed} chunks across ${d.files_indexed} files in ${d.elapsed_sec.toFixed(1)}s`;
+    await refreshStatus();
+    if (fromModal) setTimeout(closeModal, 1800);
+  } catch(e) {
+    msgEl.textContent = "✗ " + e.message;
+    btnEl.disabled = false;
+  }
+}
+
+// ── Source toggles (Local Path / Git URL) ───────────────────────
+function switchSrc(which) {
+  const git = which === "git";
+  $("rowLocal").style.display = git ? "none" : "flex";
+  $("rowGit").style.display   = git ? "flex" : "none";
+  $("tabLocal").classList.toggle("active", !git);
+  $("tabGit").classList.toggle("active", git);
+  $("setupMsg").textContent = "";
+  (git ? $("setupGit") : $("setupPath")).focus();
+}
+
+function switchModalSrc(which) {
+  const git = which === "git";
+  $("mFieldLocal").style.display = git ? "none" : "block";
+  $("mFieldGit").style.display   = git ? "block" : "none";
+  $("mBtn").style.display    = git ? "none" : "inline-flex";
+  $("mGitBtn").style.display = git ? "inline-flex" : "none";
+  $("mTabLocal").classList.toggle("active", !git);
+  $("mTabGit").classList.toggle("active", git);
+  $("mMsg").textContent = "";
+  (git ? $("mGit") : $("mPath")).focus();
 }
 
 // ── Modal ───────────────────────────────────────────────────────
@@ -1171,8 +1261,16 @@ $("setupPath").addEventListener("keydown", e => {
   if (e.key === "Enter") doIndex($("setupPath").value);
 });
 
+$("setupGit").addEventListener("keydown", e => {
+  if (e.key === "Enter") doIndexGit($("setupGit").value);
+});
+
 $("mPath").addEventListener("keydown", e => {
   if (e.key === "Enter") doIndex($("mPath").value, true);
+});
+
+$("mGit").addEventListener("keydown", e => {
+  if (e.key === "Enter") doIndexGit($("mGit").value, true);
 });
 
 // ── Boot ────────────────────────────────────────────────────────

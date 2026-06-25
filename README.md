@@ -60,9 +60,10 @@ reposage/
 │   ├── retrieval/retriever.py  embed query → search → cited hits
 │   ├── llm/                    base (interface + grounding prompt) · ollama · hosted
 │   ├── routes/                 index_routes · ask_routes
+│   ├── services/git_clone.py   shallow-clone a remote repo for indexing
 │   └── watcher.py              watchdog incremental trigger (dev)
 ├── frontend/index.html         single-page chat + evidence panel
-├── tests/                      test_chunking · test_incremental_index · eval_qa
+├── tests/                      test_chunking · test_incremental_index · test_git_clone · eval_qa
 ├── eval/qa_pairs.json          hand-written retrieval eval set
 ├── Dockerfile · requirements.txt · .env.example
 ```
@@ -85,14 +86,20 @@ uvicorn app.main:app --reload
 Then:
 
 ```bash
-# 1) Index a repo (defaults to REPO_PATH if you omit repo_path)
+# 1a) Index a local repo (defaults to REPO_PATH if you omit repo_path)
 curl -X POST localhost:8000/repos/index -H 'content-type: application/json' \
      -d '{"repo_path": "/path/to/repo"}'
+
+# 1b) Or index directly from a Git URL (shallow-clones, then indexes)
+curl -X POST localhost:8000/repos/index-git -H 'content-type: application/json' \
+     -d '{"git_url": "https://github.com/owner/repo"}'
 
 # 2) Ask
 curl -X POST localhost:8000/ask -H 'content-type: application/json' \
      -d '{"question": "How does incremental indexing decide what to re-embed?"}'
 ```
+
+Or open **http://localhost:8000** for the chat UI — the setup screen has a **Local Path / Git URL** toggle so you can index from either source directly in the browser.
 
 Or open **http://localhost:8000** for the chat UI (question box + evidence cards with GitHub links).
 
@@ -118,7 +125,8 @@ python -m app.watcher        # watches REPO_PATH
 
 | Method & path            | Purpose                                                             |
 |--------------------------|---------------------------------------------------------------------|
-| `POST /repos/index`      | Full (re)index. `{repo_path?}` → `{files_indexed, chunks_indexed, ntotal, elapsed_sec}` |
+| `POST /repos/index`      | Full (re)index of a **local path**. `{repo_path?}` → `{files_indexed, chunks_indexed, ntotal, elapsed_sec}` |
+| `POST /repos/index-git`  | Shallow-clone a remote repo and full-index it. `{git_url, branch?}` → same stats + `git_url`. GitHub citation links are auto-detected from the clone. |
 | `POST /ask`              | Blocking. `{question, top_k?}` → `{answer, citations:[{file_path,start_line,end_line,github_url,snippet}], model}` |
 | `POST /ask/stream`       | Streaming (SSE). Emits a `citations` event immediately, then `token` events, then `done`. The chat UI uses this. |
 | `POST /webhook/git-push` | `{changed_files, deleted_files}` → incremental stats (proves how little was re-embedded) |
@@ -183,6 +191,7 @@ All via env / `.env` (see `.env.example`):
 | `GROQ_API_KEY` / `OPENAI_API_KEY` | — | required when `LLM_PROVIDER=hosted` |
 | `GITHUB_OWNER/REPO/COMMIT` | auto-detected from git | citation link base |
 | `TOP_K` | `8` | chunks retrieved per question |
+| `GIT_CLONE_TIMEOUT` | `120` | seconds before a remote clone is aborted |
 
 ## Deploy
 
