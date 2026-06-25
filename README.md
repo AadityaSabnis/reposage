@@ -83,7 +83,11 @@ cp .env.example .env          # set REPO_PATH to the repo you want to index
 uvicorn app.main:app --reload
 ```
 
-Then:
+Then open **http://localhost:8000** for the chat UI. The setup screen has a **Local Path / Git URL** toggle so you can index from either source.
+
+The server will try Ollama first (no API key needed). If Ollama is unavailable, it automatically falls back to **Groq** (free tier) — just make sure you added `GROQ_API_KEY=gsk_...` to `.env`.
+
+Or use curl:
 
 ```bash
 # 1a) Index a local repo (defaults to REPO_PATH if you omit repo_path)
@@ -98,8 +102,6 @@ curl -X POST localhost:8000/repos/index-git -H 'content-type: application/json' 
 curl -X POST localhost:8000/ask -H 'content-type: application/json' \
      -d '{"question": "How does incremental indexing decide what to re-embed?"}'
 ```
-
-Or open **http://localhost:8000** for the chat UI — the setup screen has a **Local Path / Git URL** toggle so you can index from either source directly in the browser.
 
 Or open **http://localhost:8000** for the chat UI (question box + evidence cards with GitHub links).
 
@@ -185,10 +187,10 @@ All via env / `.env` (see `.env.example`):
 | `REPO_PATH` | `./` | repo to index |
 | `DATA_DIR` | `./data` | FAISS index + SQLite live here |
 | `EMBEDDING_MODEL_PATH` | `all-MiniLM-L6-v2` | model name or local path |
-| `LLM_PROVIDER` | `ollama` | `ollama` (local) or `hosted` (deploys) |
+| `LLM_PROVIDER` | `ollama` | `ollama` (tries local, falls back to Groq) or `hosted` (use Groq/OpenAI directly) |
 | `OLLAMA_MODEL` | `phi3:mini` | local model |
 | `HOSTED_BASE_URL` / `HOSTED_MODEL` | Groq defaults | OpenAI-compatible endpoint |
-| `GROQ_API_KEY` / `OPENAI_API_KEY` | — | required when `LLM_PROVIDER=hosted` |
+| `GROQ_API_KEY` / `OPENAI_API_KEY` | — | fallback when Ollama unavailable, or always when `LLM_PROVIDER=hosted` |
 | `GITHUB_OWNER/REPO/COMMIT` | auto-detected from git | citation link base |
 | `TOP_K` | `8` | chunks retrieved per question |
 | `GIT_CLONE_TIMEOUT` | `120` | seconds before a remote clone is aborted |

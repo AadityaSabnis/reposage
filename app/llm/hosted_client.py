@@ -61,9 +61,40 @@ class HostedClient(LLMClient):
 
 
 def make_llm_client() -> LLMClient:
-    """Factory honoring LLM_PROVIDER."""
+    """Factory honoring LLM_PROVIDER with Ollama→Groq fallback.
+
+    If LLM_PROVIDER=ollama (the default), tries to connect to the local Ollama
+    server. If Ollama is unreachable, silently falls back to Groq (needs
+    GROQ_API_KEY in .env). If LLM_PROVIDER=hosted, uses Groq/OpenAI directly.
+    """
+    import logging
     from app.llm.ollama_client import OllamaClient
 
+    log = logging.getLogger("reposage")
+
     if settings.llm_provider.lower() == "hosted":
+        log.info("Using hosted LLM (Groq/OpenAI)")
         return HostedClient()
-    return OllamaClient()
+
+    # Try Ollama first (no API key needed, runs locally).
+    try:
+        import httpx
+        # Quick connection check with a 2-second timeout.
+        client = OllamaClient()
+        with httpx.Client(timeout=2.0) as c:
+            r = c.head(f"{client.url}/api/tags")
+            if r.status_code == 200:
+                log.info("Using local Ollama")
+                return client
+    except (httpx.ConnectError, httpx.TimeoutException, Exception):
+        pass
+
+    # Ollama not available; fall back to Groq if API key is set.
+    if settings.hosted_api_key:
+        log.info("Ollama unavailable, falling back to hosted LLM (Groq/OpenAI)")
+        return HostedClient()
+
+    # Neither works -> error.
+    raise RuntimeError(
+        "No LLM available. Either run Ollama, or set GROQ_API_KEY/OPENAI_API_KEY in .env"
+    )
