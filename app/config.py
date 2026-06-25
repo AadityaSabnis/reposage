@@ -26,8 +26,8 @@ class Settings(BaseSettings):
     data_dir: str = "./data"
 
     # ── Embeddings ───────────────────────────────────────────────
-    embedding_model_path: str = "BAAI/bge-base-en-v1.5"
-    embedding_dim: int = 768  # bge-base-en-v1.5 output dimensionality
+    embedding_model_path: str = "BAAI/bge-small-en-v1.5"
+    embedding_dim: int = 384  # bge-small-en-v1.5 output dimensionality
 
     # ── LLM provider selection ───────────────────────────────────
     llm_provider: str = "ollama"  # "ollama" | "hosted"

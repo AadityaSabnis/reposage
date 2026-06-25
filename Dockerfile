@@ -17,7 +17,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Pre-download the embedding model into the image so cold starts are fast
 # and the container needs no network for embeddings at runtime.
 RUN python -c "from sentence_transformers import SentenceTransformer; \
-    SentenceTransformer('BAAI/bge-base-en-v1.5')"
+    SentenceTransformer('BAAI/bge-small-en-v1.5')"
 
 COPY . .
 
