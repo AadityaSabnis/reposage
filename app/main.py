@@ -7,6 +7,7 @@ On startup it loads any previously persisted FAISS index from disk.
 from __future__ import annotations
 
 import logging
+import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -15,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
 from app.config import settings
-from app.deps import get_indexer, get_llm
+from app.deps import get_embedder, get_indexer, get_llm
 from app.routes import ask_routes, index_routes
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -40,6 +41,19 @@ async def lifespan(app: FastAPI):
     except Exception as e:  # don't block startup on a bad/old index file
         log.warning("Could not load persisted index: %s", e)
     log.info("LLM provider: %s", settings.llm_provider)
+
+    # Pre-load the embedding model in the background so the first-run
+    # download happens at boot (visible in logs + via /model/status) rather
+    # than stalling the first index request.
+    def _warm():
+        try:
+            log.info("Loading embedding model '%s'…", settings.embedding_model_path)
+            get_embedder().warmup()
+            log.info("Embedding model ready.")
+        except Exception as e:
+            log.warning("Embedding model failed to load: %s", e)
+
+    threading.Thread(target=_warm, daemon=True).start()
     yield
 
 
@@ -59,6 +73,17 @@ app.include_router(ask_routes.router)
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/model/status")
+def model_status():
+    """Embedding-model readiness, for the UI's first-run download banner."""
+    emb = get_embedder()
+    return {
+        "status": getattr(emb, "status", "ready"),   # idle|loading|ready|error
+        "model": getattr(emb, "model_name", settings.embedding_model_path),
+        "error": getattr(emb, "error", None),
+    }
 
 
 @app.get("/stats")

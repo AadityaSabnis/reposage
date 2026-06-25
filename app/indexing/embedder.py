@@ -34,13 +34,34 @@ class SentenceTransformerEmbedder:
         self._model_path = model_path or settings.embedding_model_path
         self.dim = dim or settings.embedding_dim
         self._model = None
+        # First-run state, surfaced via /model/status so the UI can show a
+        # "downloading model…" banner instead of looking hung.
+        self.status = "idle"          # idle | loading | ready | error
+        self.error: str | None = None
 
     def _ensure_model(self):
         if self._model is None:
-            from sentence_transformers import SentenceTransformer
-            self._model = SentenceTransformer(self._model_path)
-            self.dim = self._model.get_sentence_embedding_dimension()
+            self.status = "loading"
+            try:
+                from sentence_transformers import SentenceTransformer
+                self._model = SentenceTransformer(self._model_path)
+                self.dim = self._model.get_sentence_embedding_dimension()
+                self.status = "ready"
+                self.error = None
+            except Exception as e:
+                self.status = "error"
+                self.error = str(e)
+                raise
         return self._model
+
+    def warmup(self) -> None:
+        """Load the model now (used at startup to surface the first-run
+        download as a visible step rather than blocking the first query)."""
+        self._ensure_model()
+
+    @property
+    def model_name(self) -> str:
+        return self._model_path
 
     def embed(self, texts: List[str]) -> np.ndarray:
         if not texts:

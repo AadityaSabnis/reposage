@@ -1,12 +1,14 @@
 """Indexing endpoints: full index (local path or Git URL) + incremental webhook."""
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from app.config import settings
 from app.deps import get_indexer, get_retriever
 from app.services.git_clone import GitCloneError, clone_repo
 
@@ -70,6 +72,32 @@ def index_repo_from_git(req: GitIndexRequest):
     _sync_retriever(local_path)
     stats["git_url"] = req.git_url
     return stats
+
+
+@router.post("/repos/reset")
+def reset_index():
+    """Clear the current index (vectors + metadata) and return to a clean
+    slate. If the indexed repo was cloned from a Git URL, its checkout under
+    the repos cache is deleted too — a local path the user indexed is left
+    untouched.
+    """
+    indexer = get_indexer()
+    removed_clone = False
+
+    # Delete the cloned checkout only if it lives inside our repos cache.
+    repo_path = Path(indexer.repo_path).resolve()
+    cache_root = settings.repos_cache_dir.resolve()
+    if cache_root in repo_path.parents and repo_path.exists():
+        shutil.rmtree(repo_path, ignore_errors=True)
+        removed_clone = True
+
+    indexer.vector_store.reset()
+    indexer.metadata.reset()
+    indexer.persist()
+    indexer.last_update_stats = {}
+    indexer.last_full_index_stats = {}
+
+    return {"ok": True, "ntotal": indexer.vector_store.ntotal, "removed_clone": removed_clone}
 
 
 @router.post("/webhook/git-push")
