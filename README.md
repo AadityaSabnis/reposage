@@ -44,7 +44,7 @@ Most "chat with your repo" demos re-embed everything on every change and cite no
             └────────────────────────────────┘
 ```
 
-**Stack:** Python · FastAPI · tree-sitter · sentence-transformers (`all-MiniLM-L6-v2`, local, 384-dim) · FAISS (`IndexIDMap(IndexFlatIP)`) · SQLite · pluggable LLM (Ollama `phi3:mini` locally / OpenAI-compatible hosted for deploys) · watchdog · vanilla-JS frontend.
+**Stack:** Python · FastAPI · tree-sitter · sentence-transformers (`BAAI/bge-base-en-v1.5`, local, 768-dim) · FAISS (`IndexIDMap(IndexFlatIP)`) · SQLite · pluggable LLM (Ollama `phi3:mini` locally / OpenAI-compatible hosted for deploys) · watchdog · vanilla-JS frontend.
 
 ## Layout
 
@@ -186,7 +186,7 @@ All via env / `.env` (see `.env.example`):
 |-----|---------|-------|
 | `REPO_PATH` | `./` | repo to index |
 | `DATA_DIR` | `./data` | FAISS index + SQLite live here |
-| `EMBEDDING_MODEL_PATH` | `all-MiniLM-L6-v2` | model name or local path |
+| `EMBEDDING_MODEL_PATH` | `BAAI/bge-base-en-v1.5` | model name or local path (768-dim, retrieval-optimized) |
 | `LLM_PROVIDER` | `ollama` | `ollama` (tries local, falls back to Groq) or `hosted` (use Groq/OpenAI directly) |
 | `OLLAMA_MODEL` | `phi3:mini` | local model |
 | `HOSTED_BASE_URL` / `HOSTED_MODEL` | Groq defaults | OpenAI-compatible endpoint |
